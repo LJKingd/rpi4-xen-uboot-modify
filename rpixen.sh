@@ -41,7 +41,6 @@ done
 
 
 WRKDIR=$(pwd)/
-SCRIPTDIR=$(cd $(dirname $0) && pwd)/
 
 USERNAME=pi
 PASSWORD=123
@@ -55,7 +54,6 @@ BUILD_ARCH=$ARCH_CFG
 
 sudo apt install device-tree-compiler tftpd-hpa flex bison qemu-utils kpartx git curl qemu-user-static binfmt-support parted bc libncurses5-dev libssl-dev pkg-config python acpica-tools u-boot-tools
 
-source ${SCRIPTDIR}toolchain-aarch64-linux-gnu.sh
 
 DTBFILE=bcm2711-rpi-4-b.dtb
 
@@ -66,17 +64,12 @@ if [ ! -d firmware ]; then
 fi
 
 if [ ! -d xen ]; then
-    git clone git://xenbits.xen.org/xen.git
-    cd xen
-    git checkout RELEASE-4.13.0
-    git am ${SCRIPTDIR}patches/xen/0001-XEN-on-RPi4-1GB-lmitation-workaround-XEN-tries-to-al.patch
+    git clone -b RELEASE-4.16.0 git://xenbits.xen.org/xen.git
     cd ${WRKDIR}
 fi
 
 if [ ! -d linux ]; then
-    git clone --depth 1 --branch rpi-4.19.y https://github.com/raspberrypi/linux.git linux
-    cd linux
-    git am ${SCRIPTDIR}patches/linux/*.patch
+    git clone --depth 1 --branch rpi-5.10.y https://github.com/raspberrypi/linux.git linux
     cd ${WRKDIR}
 fi
 
@@ -103,7 +96,7 @@ if [ ! -s ${WRKDIR}xen/xen/xen ]; then
         echo "CONFIG_SCHED_ARINC653=y" >> xen/arch/arm/configs/arm64_defconfig
         make -C xen XEN_TARGET_ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CONFIG_EARLY_PRINTK=8250,0xfe215040,2 defconfig
     fi
-    make XEN_TARGET_ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CONFIG_EARLY_PRINTK=8250,0xfe215040,2 dist-xen -j $(nproc)
+    make XEN_TARGET_ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- dist-xen -j $(nproc)
     cd ${WRKDIR}
 fi
 
@@ -154,7 +147,6 @@ cat > bootfiles/config.txt <<EOF
 kernel=u-boot.bin
 arm_64bit=1
 device_tree=${DTBFILE}
-total_mem=3072
 enable_gic=1
 
 #disable_overscan=1
@@ -199,7 +191,7 @@ MNTROOTFS=/mnt/dom0_rpi-arm64-rootfs/
 MNTBOOT=${MNTROOTFS}boot/
 IMGFILE=${MNTRAMDISK}rpixen.img
 
-ROOTFS=${VARIANT}-ubuntu-base-18.04.3-base-${BUILD_ARCH}-prepped.tar.gz
+ROOTFS=${VARIANT}-ubuntu-base-20.04.3-base-${BUILD_ARCH}-prepped.tar.gz
 if [ ! -s ${ROOTFS} ]; then
     ./ubuntu-base-prep.sh ${ROOTFS} ${MNTRAMDISK} ${BUILD_ARCH}  ${DNS_SERVER} ${PROXY_CFG} 
 fi
