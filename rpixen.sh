@@ -52,7 +52,7 @@ VARIANT=dom0
 
 BUILD_ARCH=$ARCH_CFG
 
-sudo apt install device-tree-compiler tftpd-hpa flex bison qemu-utils kpartx git curl qemu-user-static binfmt-support parted bc libncurses5-dev libssl-dev pkg-config python acpica-tools u-boot-tools
+sudo apt install device-tree-compiler tftpd-hpa flex bison qemu-utils kpartx git curl qemu-user-static binfmt-support parted bc libncurses5-dev libssl-dev pkg-config python3 acpica-tools u-boot-tools
 
 
 DTBFILE=bcm2711-rpi-4-b.dtb
@@ -64,7 +64,10 @@ if [ ! -d firmware ]; then
 fi
 
 if [ ! -d xen ]; then
-    git clone -b RELEASE-4.16.0 git://xenbits.xen.org/xen.git
+    git clone git://xenbits.xen.org/xen.git
+    cd xen
+    git checkout RELEASE-4.19.0
+    git am ${SCRIPTDIR}patches/xen/0001-XEN-on-RPi4-1GB-lmitation-workaround-XEN-tries-to-al.patch
     cd ${WRKDIR}
 fi
 
@@ -191,7 +194,7 @@ MNTROOTFS=/mnt/dom0_rpi-arm64-rootfs/
 MNTBOOT=${MNTROOTFS}boot/
 IMGFILE=${MNTRAMDISK}rpixen.img
 
-ROOTFS=${VARIANT}-ubuntu-base-20.04.3-base-${BUILD_ARCH}-prepped.tar.gz
+ROOTFS=${VARIANT}-ubuntu-base-20.04.5-base-${BUILD_ARCH}-prepped.tar.gz
 if [ ! -s ${ROOTFS} ]; then
     ./ubuntu-base-prep.sh ${ROOTFS} ${MNTRAMDISK} ${BUILD_ARCH}  ${DNS_SERVER} ${PROXY_CFG} 
 fi
@@ -286,9 +289,9 @@ cd ${WRKDIR}xen
 SYSINCDIRS=$(echo $(sudo chroot ${MNTROOTFS} bash -c "echo | gcc -E -Wp,-v -o /dev/null - 2>&1" | grep "^ " | sed "s|^ /| -isystem${MNTROOTFS}|"))
 SYSINCDIRSCXX=$(echo $(sudo chroot ${MNTROOTFS} bash -c "echo | g++ -x c++ -E -Wp,-v -o /dev/null - 2>&1" | grep "^ " | sed "s|^ /| -isystem${MNTROOTFS}|"))
 
-CC="${CROSS_PREFIX}-gcc --sysroot=${MNTROOTFS} -nostdinc ${SYSINCDIRS} -B${MNTROOTFS}lib/${CROSS_PREFIX} -B${MNTROOTFS}usr/lib/${CROSS_PREFIX}"
-CXX="${CROSS_PREFIX}-g++ --sysroot=${MNTROOTFS} -nostdinc ${SYSINCDIRSCXX} -B${MNTROOTFS}lib/${CROSS_PREFIX} -B${MNTROOTFS}usr/lib/${CROSS_PREFIX}"
-LDFLAGS="-Wl,-rpath-link=${MNTROOTFS}lib/${CROSS_PREFIX} -Wl,-rpath-link=${MNTROOTFS}usr/lib/${CROSS_PREFIX}"
+CC="${CROSS_PREFIX}-gcc --sysroot=${MNTROOTFS}   -B${MNTROOTFS}lib/${CROSS_PREFIX} -B${MNTROOTFS}usr/lib/${CROSS_PREFIX} -I/home/liangjin/rpi4-xen-uboot-modify/xen/tools/qemu-xen/include"
+CXX="${CROSS_PREFIX}-g++ --sysroot=${MNTROOTFS}  -B${MNTROOTFS}lib/${CROSS_PREFIX} -B${MNTROOTFS}usr/lib/${CROSS_PREFIX} -I/home/liangjin/rpi4-xen-uboot-modify/xen/tools/qemu-xen/include"
+LDFLAGS="-Wl,-rpath-link=${MNTROOTFS}lib/${CROSS_PREFIX} -Wl,-rpath-link=${MNTROOTFS}usr/lib/${CROSS_PREFIX} -Wno-error -w"
 
 PKG_CONFIG=pkg-config \
 PKG_CONFIG_LIBDIR=${MNTROOTFS}usr/lib/${CROSS_PREFIX}/pkgconfig:${MNTROOTFS}usr/share/pkgconfig \
